@@ -32,18 +32,31 @@ class EmotionsVisualization:
             print(f"Error original: {e}")
         # --- FIN DE LA IMPLEMENTACIÓN SERIAL ---
 
+        # Variable para controlar el tiempo del último envío
+        self.last_sent_time = 0
+
     def send_emotion_to_arduino(self, emotion: str):
         """
-        Envía la emoción como una cadena de texto al Arduino.
+        Envía la emoción como una cadena de texto al Arduino, pero solo si han pasado 3 segundos
+        desde el último envío.
         """
-        if self.ser and self.ser.is_open:
-            try:
-                # Se envía la emoción seguida de un salto de línea '\n'
-                # para que Arduino sepa cuándo termina el mensaje.
-                self.ser.write(f"{emotion}\n".encode('utf-8'))
-                print(f"Emoción enviada a Arduino: {emotion}")
-            except serial.SerialException as e:
-                print(f"Error al enviar datos: {e}")
+        current_time = time.time()
+        # Comprueba si han pasado al menos 3 segundos desde el último envío
+        if current_time - self.last_sent_time >= 3:
+            if self.ser and self.ser.is_open:
+                try:
+                    # Se envía la emoción seguida de un salto de línea '\n'
+                    # para que Arduino sepa cuándo termina el mensaje.
+                    self.ser.write(f"{emotion}\n".encode('utf-8'))
+                    print(f"Emoción enviada a Arduino: {emotion}")
+                    self.last_sent_time = current_time  # Actualiza el tiempo del último envío
+                except serial.SerialException as e:
+                    print(f"Error al enviar datos: {e}")
+        else:
+            # Opcional: Puedes imprimir un mensaje si no se envía la emoción
+            # print(f"Esperando para enviar la próxima emoción. Tiempo restante: {3 - (current_time - self.last_sent_time):.2f}s")
+            pass
+
 
     def main(self, emotions: dict, original_image: np.ndarray):
         # --- LÓGICA PARA ENCONTRAR Y ENVIAR LA EMOCIÓN DOMINANTE ---
@@ -51,7 +64,7 @@ class EmotionsVisualization:
             # Encontrar la emoción con el puntaje más alto
             dominant_emotion = max(emotions, key=emotions.get)
 
-            # Enviar la emoción dominante al Arduino
+            # Enviar la emoción dominante al Arduino (con el control de tiempo incorporado)
             self.send_emotion_to_arduino(dominant_emotion)
 
         # --- Dibuja las barras y texto en la imagen (tu código original) ---
